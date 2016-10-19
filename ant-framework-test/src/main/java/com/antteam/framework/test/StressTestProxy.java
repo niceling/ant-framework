@@ -1,11 +1,6 @@
 package com.antteam.framework.test;
 
-import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 /**
  * ClassName: TestProxy 
@@ -15,38 +10,14 @@ import java.util.concurrent.Future;
  */
 public abstract class StressTestProxy{
     
-    private StatData statData=null;
+    private StressTestUtil stressUtil;
     
-    private void before(int threadNum, long totalTimes)
+    private void before(int threadNum)
     {
-        statData=new StatData();
-        statData.setThreadNum(threadNum);
-        statData.setTotalTimes(totalTimes);
+        stressUtil=new StressTestUtil();
+        stressUtil.init(threadNum);
     }
     
-    private void countData(Long runTime,boolean isSuccess){
-        statData.setTotalTime(statData.getTotalTime()+runTime);
-        if(runTime.compareTo(statData.getRequestMaxTime())>0){
-            statData.setRequestMaxTime(runTime);
-        }
-        if(runTime.compareTo(statData.getRequestMinTime())<0){
-            statData.setRequestMinTime(runTime);
-        }
-        if(!isSuccess){
-            statData.setFailTimes(statData.getFailTimes()+1);
-        }
-    }
-    
-    private void after()
-    {
-        System.out.println(statData);
-        afterEvent();
-    }
-    
-    protected abstract void afterEvent();
-    
-    protected abstract ExcuteResult handleResult(ExcuteResult result);
-
     
     /**
      * @Description: 压测方法
@@ -61,21 +32,28 @@ public abstract class StressTestProxy{
      * @date 2016年10月18日
      */
     public void submitTestTask(int threadNum,int totalTimes,RunnerCallBack runCallBack){
-        before(threadNum,totalTimes);
-        ExecutorService exec = Executors.newFixedThreadPool(threadNum);
-        CompletionService<ExcuteResult> pool=new ExecutorCompletionService<ExcuteResult>(exec);
+        before(threadNum);
         for (int index = 0; index <totalTimes; index++) {
             Task task=new Task(runCallBack);
-            Future<ExcuteResult> future= pool.submit(task);
-            try {
-                ExcuteResult result=handleResult(future.get());
-                countData(result.getRuntime(), result.isSuccess());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            stressUtil.submit(task);
         }
-        exec.shutdown();
-        after();
+        after(totalTimes);
     }
     
+    
+    private void after(long totalTimes)
+    {
+        stressUtil.countStatData(totalTimes,new HandleResultCallBack() {
+            @Override
+            public ExcuteResult handle(ExcuteResult result) {
+                return handleResult(result);
+            }
+        });
+        stressUtil.destory();
+        afterEvent();
+    }
+    
+    protected abstract void afterEvent();
+    
+    protected abstract ExcuteResult handleResult(ExcuteResult result);
 }
