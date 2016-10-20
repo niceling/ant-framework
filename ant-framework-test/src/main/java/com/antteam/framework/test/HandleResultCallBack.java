@@ -2,7 +2,7 @@ package com.antteam.framework.test;
 
 /**
  * ClassName: HandleCallBack 
- * @Description: TODO
+ * @Description: 处理ExcuteResult
  * @author Mirai
  * @date 2016年10月19日
  */
